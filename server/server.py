@@ -111,12 +111,7 @@ def recognize_photo(img: Image.Image) -> str:
 def recognize_drawing(img: Image.Image) -> str:
     """
     Распознавание рисунка через PP-FormulaNet_plus-M.
-
-    FormulaNet у нас успешно работает при передаче
-    пути к PNG, поэтому сохраняем временный файл.
     """
-    img = preprocess_drawing(img)
-
     temp_path = None
 
     try:
@@ -136,8 +131,7 @@ def recognize_drawing(img: Image.Image) -> str:
         for result in results:
             print("FormulaNet result:", result)
 
-            data = result.get("res", {})
-            latex = data.get("rec_formula", "")
+            latex = result.get("rec_formula", "")
 
             if latex:
                 return clean_latex(latex)
