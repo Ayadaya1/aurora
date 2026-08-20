@@ -421,6 +421,13 @@ class _DrawAndLatexScreenState extends State<DrawAndLatexScreen> {
     try {
       final formData = FormData();
 
+      formData.fields.add(
+        MapEntry(
+          'mode',
+          _inputMode == _InputMode.photo ? 'photo' : 'drawing',
+        ),
+      );
+
       if (_inputMode == _InputMode.photo) {
         formData.files.add(
           MapEntry(
@@ -471,6 +478,9 @@ class _DrawAndLatexScreenState extends State<DrawAndLatexScreen> {
 
       _webViewController.loadHtmlString(_buildLatexHtml(latex));
     } on DioException catch (e) {
+      print('STATUS: ${e.response?.statusCode}');
+      print('DATA: ${e.response?.data}');
+      print('HEADERS: ${e.response?.headers}');
       if (!mounted) {
         return;
       }

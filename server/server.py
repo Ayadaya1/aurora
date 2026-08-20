@@ -34,7 +34,6 @@ def preprocess_drawing(img: Image.Image) -> Image.Image:
     img = img.convert("L")
 
     img = ImageOps.autocontrast(img)
-
     img = crop_content(img, margin=32)
 
     img = img.filter(
@@ -52,9 +51,12 @@ def preprocess_photo(img: Image.Image) -> Image.Image:
     img = ImageOps.exif_transpose(img)
     img = img.convert("L")
 
-    img = ImageOps.autocontrast(img)
+    img = img.resize(
+        (img.width * 2, img.height * 2),
+        Image.Resampling.LANCZOS,
+    )
 
-    img = crop_content(img, margin=40)
+    img = ImageOps.autocontrast(img)
 
     img = img.filter(
         ImageFilter.UnsharpMask(
@@ -114,6 +116,8 @@ def latex_score(latex: str) -> int:
 
 
 def recognize_with_candidates(img: Image.Image) -> str:
+    latex = model(img)
+    return clean_latex(latex)
     original_temperature = model.args.temperature
 
     candidates = []
