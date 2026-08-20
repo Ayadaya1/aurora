@@ -3,14 +3,26 @@ from io import BytesIO
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from PIL import Image, ImageOps, ImageFilter
 from pix2tex.cli import LatexOCR
+from paddlex import create_model
 
 
 app = FastAPI()
 
-model = LatexOCR()
+# Печатные / сфотографированные формулы
+pix2tex_model = LatexOCR()
+
+# Рукописные формулы
+formula_model = create_model(
+    model_name="PP-FormulaNet_plus-M",
+    device="cpu",
+)
 
 
 def crop_content(img: Image.Image, margin: int = 24) -> Image.Image:
+    """
+    Обрезает пустые поля вокруг содержимого.
+    Хорошо подходит для рисунка с Canvas.
+    """
     gray = img.convert("L")
     inverted = ImageOps.invert(gray)
 
@@ -29,30 +41,17 @@ def crop_content(img: Image.Image, margin: int = 24) -> Image.Image:
     return gray.crop((left, top, right, bottom))
 
 
-def preprocess_drawing(img: Image.Image) -> Image.Image:
-    img = ImageOps.exif_transpose(img)
-    img = img.convert("L")
-
-    img = ImageOps.autocontrast(img)
-    img = crop_content(img, margin=32)
-
-    img = img.filter(
-        ImageFilter.UnsharpMask(
-            radius=1.5,
-            percent=140,
-            threshold=3,
-        )
-    )
-
-    return img
-
-
 def preprocess_photo(img: Image.Image) -> Image.Image:
+    """
+    Текущий удачный preprocessing для фотографий.
+    Не делаем aggressive crop/binarization, чтобы не портить pix2tex.
+    """
     img = ImageOps.exif_transpose(img)
     img = img.convert("L")
 
+    scale = 2
     img = img.resize(
-        (img.width * 2, img.height * 2),
+        (img.width * scale, img.height * scale),
         Image.Resampling.LANCZOS,
     )
 
@@ -69,11 +68,26 @@ def preprocess_photo(img: Image.Image) -> Image.Image:
     return img
 
 
-def preprocess(img: Image.Image, mode: str) -> Image.Image:
-    if mode == "drawing":
-        return preprocess_drawing(img)
+def preprocess_drawing(img: Image.Image) -> Image.Image:
+    """
+    Preprocessing для чистого PNG с Canvas.
+    """
+    img = ImageOps.exif_transpose(img)
+    img = img.convert("L")
 
-    return preprocess_photo(img)
+    img = ImageOps.autocontrast(img)
+
+    img = crop_content(img, margin=32)
+
+    img = img.filter(
+        ImageFilter.UnsharpMask(
+            radius=1.5,
+            percent=140,
+            threshold=3,
+        )
+    )
+
+    return img
 
 
 def clean_latex(latex: str) -> str:
@@ -91,53 +105,34 @@ def clean_latex(latex: str) -> str:
     return latex
 
 
-def latex_score(latex: str) -> int:
-    score = 0
+def recognize_photo(img: Image.Image) -> str:
+    img = preprocess_photo(img)
 
-    if latex:
-        score += 1
+    latex = pix2tex_model(img)
 
-    if latex.count("{") == latex.count("}"):
-        score += 2
-
-    if latex.count("[") == latex.count("]"):
-        score += 1
-
-    if latex.count("(") == latex.count(")"):
-        score += 1
-
-    if "\\frac" in latex:
-        score += 1
-
-    if "\\" in latex:
-        score += 1
-
-    return score
-
-
-def recognize_with_candidates(img: Image.Image) -> str:
-    latex = model(img)
     return clean_latex(latex)
-    original_temperature = model.args.temperature
 
-    candidates = []
 
-    try:
-        for temperature in (0.15, 0.25, 0.35):
-            model.args.temperature = temperature
+def recognize_drawing(img: Image.Image) -> str:
+    img = preprocess_drawing(img)
 
-            latex = model(img, resize=True)
-            latex = clean_latex(latex)
+    # PaddleX возвращает генератор результатов.
+    results = formula_model.predict(
+        input=img,
+        batch_size=1,
+    )
 
-            if latex:
-                candidates.append(latex)
-    finally:
-        model.args.temperature = original_temperature
+    for result in results:
+        # В актуальном PaddleX результат содержит:
+        # result["res"]["rec_formula"]
+        data = result["res"]
 
-    if not candidates:
-        raise ValueError("Модель не вернула формулу")
+        latex = data.get("rec_formula", "")
 
-    return max(candidates, key=latex_score)
+        if latex:
+            return clean_latex(latex)
+
+    raise ValueError("FormulaNet не вернул формулу")
 
 
 @app.post("/recognize")
@@ -169,8 +164,11 @@ async def recognize(
         )
 
     try:
-        img = preprocess(img, mode)
-        latex = recognize_with_candidates(img)
+        if mode == "drawing":
+            latex = recognize_drawing(img)
+        else:
+            latex = recognize_photo(img)
+
     except Exception as exc:
         raise HTTPException(
             status_code=500,
