@@ -1,17 +1,21 @@
+import os
+import tempfile
 from io import BytesIO
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
-from PIL import Image, ImageOps, ImageFilter
-from pix2tex.cli import LatexOCR
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from PIL import Image, ImageFilter, ImageOps
 from paddlex import create_model
+from pix2tex.cli import LatexOCR
 
 
 app = FastAPI()
 
-# Печатные / сфотографированные формулы
+
+# Печатные / сфотографированные формулы.
 pix2tex_model = LatexOCR()
 
-# Рукописные формулы
+
+# Рукописные формулы.
 formula_model = create_model(
     model_name="PP-FormulaNet_plus-M",
     device="cpu",
@@ -19,10 +23,7 @@ formula_model = create_model(
 
 
 def crop_content(img: Image.Image, margin: int = 24) -> Image.Image:
-    """
-    Обрезает пустые поля вокруг содержимого.
-    Хорошо подходит для рисунка с Canvas.
-    """
+    """Обрезает пустые поля вокруг содержимого."""
     gray = img.convert("L")
     inverted = ImageOps.invert(gray)
 
@@ -43,13 +44,16 @@ def crop_content(img: Image.Image, margin: int = 24) -> Image.Image:
 
 def preprocess_photo(img: Image.Image) -> Image.Image:
     """
-    Текущий удачный preprocessing для фотографий.
-    Не делаем aggressive crop/binarization, чтобы не портить pix2tex.
+    Preprocessing для фотографий.
+
+    Оставляем максимально близким к тому варианту,
+    который у тебя уже хорошо работал.
     """
     img = ImageOps.exif_transpose(img)
     img = img.convert("L")
 
     scale = 2
+
     img = img.resize(
         (img.width * scale, img.height * scale),
         Image.Resampling.LANCZOS,
@@ -70,27 +74,17 @@ def preprocess_photo(img: Image.Image) -> Image.Image:
 
 def preprocess_drawing(img: Image.Image) -> Image.Image:
     """
-    Preprocessing для чистого PNG с Canvas.
+    Сейчас намеренно минимальный preprocessing для drawing.
+
+    Мы сначала проверяем чистый baseline FormulaNet,
+    потому что именно такой PNG уже успешно распознавался
+    в отдельном тесте.
     """
-    img = ImageOps.exif_transpose(img)
-    img = img.convert("L")
-
-    img = ImageOps.autocontrast(img)
-
-    img = crop_content(img, margin=32)
-
-    img = img.filter(
-        ImageFilter.UnsharpMask(
-            radius=1.5,
-            percent=140,
-            threshold=3,
-        )
-    )
-
     return img
 
 
 def clean_latex(latex: str) -> str:
+    """Минимальная очистка результата модели."""
     latex = latex.strip()
 
     latex = latex.replace("\n", " ")
@@ -106,6 +100,7 @@ def clean_latex(latex: str) -> str:
 
 
 def recognize_photo(img: Image.Image) -> str:
+    """Распознавание фотографии через pix2tex."""
     img = preprocess_photo(img)
 
     latex = pix2tex_model(img)
@@ -114,25 +109,47 @@ def recognize_photo(img: Image.Image) -> str:
 
 
 def recognize_drawing(img: Image.Image) -> str:
+    """
+    Распознавание рисунка через PP-FormulaNet_plus-M.
+
+    FormulaNet у нас успешно работает при передаче
+    пути к PNG, поэтому сохраняем временный файл.
+    """
     img = preprocess_drawing(img)
 
-    # PaddleX возвращает генератор результатов.
-    results = formula_model.predict(
-        input=img,
-        batch_size=1,
-    )
+    temp_path = None
 
-    for result in results:
-        # В актуальном PaddleX результат содержит:
-        # result["res"]["rec_formula"]
-        data = result["res"]
+    try:
+        with tempfile.NamedTemporaryFile(
+                suffix=".png",
+                delete=False,
+        ) as tmp:
+            temp_path = tmp.name
 
-        latex = data.get("rec_formula", "")
+        img.save(temp_path, format="PNG")
 
-        if latex:
-            return clean_latex(latex)
+        results = formula_model.predict(
+            input=temp_path,
+            batch_size=1,
+        )
 
-    raise ValueError("FormulaNet не вернул формулу")
+        for result in results:
+            print("FormulaNet result:", result)
+
+            data = result.get("res", {})
+            latex = data.get("rec_formula", "")
+
+            if latex:
+                return clean_latex(latex)
+
+        raise ValueError("FormulaNet не вернул формулу")
+
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 
 @app.post("/recognize")
@@ -170,6 +187,8 @@ async def recognize(
             latex = recognize_photo(img)
 
     except Exception as exc:
+        print(f"Recognition error ({mode}):", repr(exc))
+
         raise HTTPException(
             status_code=500,
             detail=f"Recognition failed: {exc}",
