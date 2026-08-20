@@ -1,18 +1,44 @@
 import 'package:aurora/screen.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+  final router = GoRouter(
+    initialLocation: onboardingCompleted ? '/onboarding' : '/onboarding',
+    routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) {
+          return const OnboardingScreen();
+        },
+      ),
+      GoRoute(
+        path: '/recognize',
+        builder: (context, state) {
+          return const DrawAndLatexScreen();
+        },
+      ),
+    ],
+  );
+  runApp( MyApp(config: router));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+
+  final RouterConfig<Object>? config;
+
+  const MyApp({super.key, required this.config});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Flutter Demo',
+      routerConfig: config,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -31,7 +57,6 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: DrawAndLatexScreen(),
     );
   }
 }
