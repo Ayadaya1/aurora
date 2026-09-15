@@ -2,6 +2,9 @@ fastapi
 uvicorn[standard]
 python-multipart
 Pillow
-pix2tex
 paddlepaddle
 paddlex
+pypdfium2
+opencv-contrib-python
+ftfy
+tokenizers
