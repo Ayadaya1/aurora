@@ -30,7 +30,7 @@ class DioRecognitionRemoteDataSource implements RecognitionRemoteDataSource {
           ),
         );
       case DrawingSource(:final bytes):
-        formData.fields.add(const MapEntry('mode', 'drawing'));
+        formData.fields.add(const MapEntry('mode', 'photo'));
         formData.files.add(
           MapEntry(
             'image',

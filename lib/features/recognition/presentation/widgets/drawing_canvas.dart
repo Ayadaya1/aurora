@@ -12,12 +12,61 @@ class DrawingCanvasController {
 
   Future<Uint8List> capture() async {
     final boundary =
-        boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+
     final image = await boundary.toImage(pixelRatio: 2.0);
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    const crop = 12.0;
+    const padding = 20.0;
+
+    final width = image.width - (crop * 2 * 2).round().toDouble();
+    final height = image.height - (crop * 2 * 2).round().toDouble();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    final paint = Paint();
+
+    canvas.drawRect(
+      Rect.fromLTWH(
+        0,
+        0,
+        width + padding * 2,
+        height + padding * 2,
+      ),
+      Paint()..color = Colors.white,
+    );
+
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(
+        crop * 2,
+        crop * 2,
+        width,
+        height,
+      ),
+      Rect.fromLTWH(
+        padding,
+        padding,
+        width,
+        height,
+      ),
+      paint,
+    );
+
+    final result = await recorder.endRecording().toImage(
+      (width + padding * 2).round(),
+      (height + padding * 2).round(),
+    );
+
+    final bytes = await result.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+
     if (bytes == null) {
       throw StateError('Не удалось создать PNG');
     }
+
     return bytes.buffer.asUint8List();
   }
 }
@@ -28,22 +77,48 @@ class DrawingCanvas extends StatefulWidget {
     required this.controller,
     required this.strokeWidth,
     required this.onTouchChanged,
+    required this.strokes,
+    required this.onStrokesChanged,
   });
 
   final DrawingCanvasController controller;
   final double strokeWidth;
   final ValueChanged<bool> onTouchChanged;
+  final List<Stroke> strokes;
+  final ValueChanged<List<Stroke>> onStrokesChanged;
 
   @override
   State<DrawingCanvas> createState() => DrawingCanvasState();
 }
 
 class DrawingCanvasState extends State<DrawingCanvas> {
-  final List<Stroke> _strokes = [];
+  late List<Stroke> _strokes;
 
   bool get isEmpty => _strokes.isEmpty;
 
-  void clear() => setState(_strokes.clear);
+  @override
+  void initState() {
+    super.initState();
+    _strokes = List.from(widget.strokes);
+  }
+
+  @override
+  void didUpdateWidget(covariant DrawingCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.strokes != widget.strokes) {
+      _strokes = List.from(widget.strokes);
+    }
+  }
+
+  void _notifyStrokesChanged() {
+    widget.onStrokesChanged(List.from(_strokes));
+  }
+
+  void clear() {
+    setState(_strokes.clear);
+    _notifyStrokesChanged();
+  }
 
   void _onPanStart(DragStartDetails d) {
     setState(() {
@@ -51,16 +126,28 @@ class DrawingCanvasState extends State<DrawingCanvas> {
         Stroke(points: [d.localPosition], strokeWidth: widget.strokeWidth),
       );
     });
+
+    _notifyStrokesChanged();
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
     if (_strokes.isEmpty) return;
-    setState(() => _strokes.last.points.add(d.localPosition));
+
+    setState(() {
+      _strokes.last.points.add(d.localPosition);
+    });
+
+    _notifyStrokesChanged();
   }
 
   void _onPanEnd(DragEndDetails _) {
     if (_strokes.isEmpty) return;
-    setState(() => _strokes.last.points.add(null));
+
+    setState(() {
+      _strokes.last.points.add(null);
+    });
+
+    _notifyStrokesChanged();
   }
 
   @override

@@ -1,6 +1,6 @@
 import 'package:aurora/core/theme/app_colors.dart';
 import 'package:aurora/features/recognition/domain/recognition_source.dart';
-import 'package:aurora/features/recognition/presentation/controllers/recognition_controller.dart';
+import 'package:aurora/features/recognition/presentation/controllers/recognition_controller.dart' hide DrawingCanvas, DrawingCanvasController, DrawingCanvasState;
 import 'package:aurora/features/recognition/presentation/widgets/drawing_canvas.dart';
 import 'package:aurora/features/recognition/presentation/widgets/latex_html_builder.dart';
 import 'package:aurora/features/recognition/presentation/widgets/latex_result_view.dart';
@@ -109,8 +109,8 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                 mode: _c.mode,
                 onChanged: (m) {
                   _c.setMode(m);
-                  _canvasKey.currentState?.clear();
-                  _webView.loadHtmlString(LatexHtmlBuilder.build(null));
+                  //_canvasKey.currentState?.clear();
+                  //_webView.loadHtmlString(LatexHtmlBuilder.build(null));
                 },
               ),
               const SizedBox(height: 12),
@@ -147,6 +147,8 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
           controller: _drawingController,
           strokeWidth: _strokeWidth,
           onTouchChanged: (v) => setState(() => _touchingCanvas = v),
+          strokes: _c.drawingStrokes,
+          onStrokesChanged: _c.setDrawingStrokes,
         ),
         const SizedBox(height: 8),
         Row(

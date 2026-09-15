@@ -17,13 +17,13 @@ class DrawingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
 
-    final dotPaint = Paint()..color = AppColors.ink.withOpacity(0.06);
-    const spacing = 22.0;
-    for (double y = spacing; y < size.height; y += spacing) {
-      for (double x = spacing; x < size.width; x += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
-      }
-    }
+    //final dotPaint = Paint()..color = AppColors.ink.withOpacity(0.06);
+    //const spacing = 22.0;
+    //for (double y = spacing; y < size.height; y += spacing) {
+    //  for (double x = spacing; x < size.width; x += spacing) {
+    //    canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
+    //  }
+    //}
 
     for (final stroke in strokes) {
       final paint = Paint()
