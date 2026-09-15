@@ -1,5 +1,7 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
-pix2tex
 Pillow
+pix2tex
+paddlepaddle
+paddlex

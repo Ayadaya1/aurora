@@ -1,0 +1,27 @@
+include:
+  - project: 'nordclan/gitlab-ci-lib'
+    ref: master
+    file: '/dev/template.gitlab-ci.yml'
+
+stages:
+  - build
+  - deploy
+
+variables:
+  GITLAB_PROJECT_NAME: aurora-backend
+  DEPLOYMENT_REPO: git@gitlab.nordclan:aurora/ansible.git
+  extends: .variables:default:global:dev
+
+build_docker:
+  only:
+    - main
+  extends:
+    - .build:docker:tag
+
+deploy_dev:
+  variables:
+    DEPLOYMENT_ENV: dev
+  image: harbor.nordclan.dev/library/ansible:2.7.1
+  only:
+    - main
+  extends: .deploy_docker2_nordclan
