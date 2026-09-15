@@ -1,8 +1,9 @@
 import asyncio
+import multiprocessing as mp
 import os
+import queue
 import tempfile
 from contextlib import asynccontextmanager
-from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -12,58 +13,14 @@ from paddlex import create_model
 
 MODEL_NAME = "PP-FormulaNet_plus-M"
 MODEL_DEVICE = "cpu"
-
-# Максимальное время распознавания одной картинки.
 INFERENCE_TIMEOUT = 30
-
-# Не позволяем нескольким тяжёлым CPU inference идти одновременно.
-INFERENCE_WORKERS = 1
-
-# Защита от огромных изображений.
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 20_000_000
-
-
-formula_model = None
-executor = None
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global formula_model
-    global executor
-
-    print(f"Loading {MODEL_NAME}...")
-
-    formula_model = create_model(
-        model_name=MODEL_NAME,
-        device=MODEL_DEVICE,
-    )
-
-    executor = ProcessPoolExecutor(
-        max_workers=INFERENCE_WORKERS,
-    )
-
-    print("FormulaNet loaded")
-
-    yield
-
-    print("Shutting down...")
-
-    executor.shutdown(
-        wait=True,
-        cancel_futures=True,
-    )
-
-
-app = FastAPI(lifespan=lifespan)
-
 
 def preprocess_image(img: Image.Image) -> Image.Image:
     img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
 
-    # Не даём огромным изображениям случайно убить CPU/RAM.
     if img.width * img.height > MAX_IMAGE_PIXELS:
         scale = (
                         MAX_IMAGE_PIXELS
@@ -98,16 +55,13 @@ def clean_latex(latex: str) -> str:
     return latex
 
 
-def recognize_with_formulanet(image_bytes: bytes) -> str:
-    """
-    Выполняется в отдельном process.
+def inference_worker(
+        request_queue: mp.Queue,
+        response_queue: mp.Queue,
+):
 
-    Если этот process зависнет, основной FastAPI process
-    сможет его уничтожить.
-    """
+    print(f"Loading {MODEL_NAME} in worker...", flush=True)
 
-    from io import BytesIO
-    from PIL import Image
     from paddlex import create_model
 
     model = create_model(
@@ -115,82 +69,275 @@ def recognize_with_formulanet(image_bytes: bytes) -> str:
         device=MODEL_DEVICE,
     )
 
-    img = Image.open(
-        BytesIO(image_bytes)
-    )
+    print("FormulaNet loaded in worker", flush=True)
 
-    img.load()
+    while True:
+        request = request_queue.get()
 
-    img = preprocess_image(img)
+        if request is None:
+            print("Worker stopping...", flush=True)
+            break
 
-    temp_path = None
+        request_id, image_bytes = request
 
-    try:
-        with tempfile.NamedTemporaryFile(
-                suffix=".png",
-                delete=False,
-        ) as tmp:
-            temp_path = tmp.name
+        temp_path = None
 
-        img.save(
-            temp_path,
-            format="PNG",
-        )
-
-        results = model.predict(
-            input=temp_path,
-            batch_size=1,
-        )
-
-        for result in results:
-            print("FormulaNet result:", result)
-
-            latex = result.get(
-                "rec_formula",
-                "",
+        try:
+            img = Image.open(
+                BytesIO(image_bytes)
             )
 
-            if latex:
-                latex = clean_latex(latex)
+            img.load()
+
+            img = preprocess_image(img)
+
+            with tempfile.NamedTemporaryFile(
+                    suffix=".png",
+                    delete=False,
+            ) as tmp:
+                temp_path = tmp.name
+
+            img.save(
+                temp_path,
+                format="PNG",
+            )
+
+            print(
+                f"Starting inference {request_id}",
+                flush=True,
+            )
+
+            results = model.predict(
+                input=temp_path,
+                batch_size=1,
+            )
+
+            latex = None
+
+            for result in results:
+                print(
+                    f"FormulaNet result {request_id}:",
+                    result,
+                    flush=True,
+                )
+
+                latex = result.get(
+                    "rec_formula",
+                    "",
+                )
 
                 if latex:
-                    return latex
+                    latex = clean_latex(latex)
 
-        raise ValueError(
-            "FormulaNet не вернул формулу"
+                if latex:
+                    break
+
+            if not latex:
+                raise ValueError(
+                    "FormulaNet не вернул формулу"
+                )
+
+            response_queue.put(
+                (
+                    request_id,
+                    {
+                        "success": True,
+                        "latex": latex,
+                    },
+                )
+            )
+
+        except Exception as exc:
+            print(
+                f"Worker error {request_id}:",
+                repr(exc),
+                flush=True,
+            )
+
+            response_queue.put(
+                (
+                    request_id,
+                    {
+                        "success": False,
+                        "error": repr(exc),
+                    },
+                )
+            )
+
+        finally:
+            if temp_path is not None:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+
+
+class FormulaWorker:
+    def __init__(self):
+        self.request_queue = None
+        self.response_queue = None
+        self.process = None
+
+        self.request_id = 0
+
+        # Один запрос за раз.
+        self.lock = asyncio.Lock()
+
+    def start(self):
+        print("Starting FormulaNet worker...")
+
+        self.request_queue = mp.Queue()
+        self.response_queue = mp.Queue()
+
+        self.process = mp.Process(
+            target=inference_worker,
+            args=(
+                self.request_queue,
+                self.response_queue,
+            ),
+            daemon=True,
         )
 
-    finally:
-        if temp_path is not None:
+        self.process.start()
+
+        print(
+            f"FormulaNet worker started: PID={self.process.pid}"
+        )
+
+    def stop(self):
+        if self.process is None:
+            return
+
+        if self.process.is_alive():
             try:
-                os.unlink(temp_path)
-            except OSError:
+                self.request_queue.put(None)
+            except Exception:
                 pass
 
+            self.process.join(timeout=5)
 
-async def recognize_with_timeout(
-        image_bytes: bytes,
-) -> str:
-    loop = asyncio.get_running_loop()
+        if self.process.is_alive():
+            print(
+                f"Worker did not stop gracefully. "
+                f"Killing PID={self.process.pid}"
+            )
 
-    future = loop.run_in_executor(
-        executor,
-        recognize_with_formulanet,
-        image_bytes,
-    )
+            self.process.kill()
+            self.process.join()
 
-    try:
-        return await asyncio.wait_for(
-            future,
-            timeout=INFERENCE_TIMEOUT,
-        )
+        self.process = None
 
-    except asyncio.TimeoutError:
-        raise TimeoutError(
-            f"Recognition exceeded "
-            f"{INFERENCE_TIMEOUT} seconds"
-        )
+    def restart(self):
+        print("Restarting FormulaNet worker...")
 
+        self.stop()
+
+        self.start()
+
+    async def recognize(
+            self,
+            image_bytes: bytes,
+    ) -> str:
+
+        async with self.lock:
+            if (
+                    self.process is None
+                    or not self.process.is_alive()
+            ):
+                self.restart()
+
+            self.request_id += 1
+            request_id = self.request_id
+
+            self.request_queue.put(
+                (
+                    request_id,
+                    image_bytes,
+                )
+            )
+
+            loop = asyncio.get_running_loop()
+
+            deadline = (
+                    loop.time()
+                    + INFERENCE_TIMEOUT
+            )
+
+            while True:
+                remaining = (
+                        deadline
+                        - loop.time()
+                )
+
+                if remaining <= 0:
+                    print(
+                        f"Recognition timeout "
+                        f"for request {request_id}"
+                    )
+
+                    self.restart()
+
+                    raise TimeoutError(
+                        f"Recognition exceeded "
+                        f"{INFERENCE_TIMEOUT} seconds"
+                    )
+
+                try:
+                    response_id, response = (
+                        await asyncio.to_thread(
+                            self.response_queue.get,
+                            True,
+                            min(remaining, 0.5),
+                        )
+                    )
+
+                except queue.Empty:
+                    if (
+                            self.process is None
+                            or not self.process.is_alive()
+                    ):
+                        self.restart()
+
+                        raise RuntimeError(
+                            "FormulaNet worker crashed"
+                        )
+
+                    continue
+
+                if response_id != request_id:
+                    continue
+
+                if not response["success"]:
+                    raise RuntimeError(
+                        response["error"]
+                    )
+
+                return response["latex"]
+
+
+
+worker = FormulaWorker()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    worker.start()
+
+    yield
+
+    print("Shutting down FormulaNet worker...")
+
+    worker.stop()
+
+
+app = FastAPI(
+    lifespan=lifespan,
+)
+
+
+# ---------------------------------------------------------
+# API
+# ---------------------------------------------------------
 
 @app.post("/recognize")
 async def recognize(
@@ -217,6 +364,7 @@ async def recognize(
             detail="Image is too large",
         )
 
+    # Проверяем, что это действительно изображение.
     try:
         img = Image.open(
             BytesIO(image_bytes)
@@ -231,7 +379,7 @@ async def recognize(
         )
 
     try:
-        latex = await recognize_with_timeout(
+        latex = await worker.recognize(
             image_bytes
         )
 
@@ -261,3 +409,5 @@ async def recognize(
         "latex": latex,
         "mode": mode,
     }
+
+
