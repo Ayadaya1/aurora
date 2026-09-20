@@ -1,6 +1,8 @@
 # aurora
 
-A new Flutter project.
+Formula OCR — распознавание формул с фотографии или рисунка.
+
+Сборка для Aurora OS 5.2.1 (ARM64 и ARM32): [инструкция](docs/AURORA.md).
 
 ## Getting Started
 

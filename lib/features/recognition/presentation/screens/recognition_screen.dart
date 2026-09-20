@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:aurora/core/theme/app_colors.dart';
 import 'package:aurora/features/recognition/domain/recognition_source.dart';
 import 'package:aurora/features/recognition/presentation/controllers/recognition_controller.dart' hide DrawingCanvas, DrawingCanvasController, DrawingCanvasState;
@@ -36,8 +38,12 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     super.initState();
     _webView = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
       ..loadHtmlString(LatexHtmlBuilder.build(null));
+
+    // The Aurora WebView plugin does not implement setBackgroundColor.
+    if (Platform.operatingSystem != 'aurora') {
+      _webView.setBackgroundColor(Colors.white);
+    }
 
     _c.addListener(_onControllerChanged);
   }
