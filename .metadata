@@ -34,6 +34,10 @@ migration:
       create_revision: cc0734ac716fbb8b90f3f9db8020958b1553afa7
       base_revision: cc0734ac716fbb8b90f3f9db8020958b1553afa7
 
+    - platform: aurora
+      create_revision: a0d3b222d7f9dd055cab6173011a147ac7e0c873
+      base_revision: a0d3b222d7f9dd055cab6173011a147ac7e0c873
+
   # User provided section
 
   # List of Local paths (relative to this file) that should be
