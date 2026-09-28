@@ -1,10 +1,11 @@
 fastapi
 uvicorn[standard]
 python-multipart
-Pillow
-paddlepaddle
-paddlex
+Pillow>=10.2,<13
+paddlepaddle==3.3.1
+paddlex==3.7.2
 pypdfium2
 opencv-contrib-python
 ftfy
 tokenizers
+numpy>=1.24,<3

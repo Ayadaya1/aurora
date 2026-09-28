@@ -1,0 +1,16 @@
+name: aurora_compat_tests
+publish_to: none
+environment:
+  sdk: ^3.11.1
+dependencies:
+  flutter:
+    sdk: flutter
+  aurora_window_manager:
+    path: ../../third_party/aurora_window_manager
+dependency_overrides:
+  aurora_platform:
+    hosted: https://sdk-repo.omprussia.ru/sdk/flutter/pub/
+    version: 1.0.2
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

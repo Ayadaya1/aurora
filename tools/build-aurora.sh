@@ -24,6 +24,13 @@ psdk_dir="${AURORA_PSDK_DIR:-/home/aurora-build/AuroraPlatformSDK/sdks/aurora_ps
 }
 
 cd "$project_root"
+# Aurora-only plugin patches must not change upstream Android dependencies.
+if [[ -e pubspec_overrides.yaml ]]; then
+  echo 'Move your pubspec_overrides.yaml aside before building Aurora.' >&2
+  exit 1
+fi
+cp tools/aurora-pubspec-overrides.yaml pubspec_overrides.yaml
+trap 'rm -f "$project_root/pubspec_overrides.yaml"' EXIT
 output_dir="$project_root/dist/aurora"
 mkdir -p "$output_dir/logs"
 "$flutter_bin" pub get --enforce-lockfile

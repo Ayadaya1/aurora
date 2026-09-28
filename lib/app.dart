@@ -9,33 +9,33 @@ import 'package:aurora/features/recognition/presentation/controllers/recognition
 import 'features/recognition/presentation/screens/recognition_screen.dart';
 
 class App extends StatefulWidget {
-  const App({super.key});
+  const App({super.key, this.onboardingCompleted = false});
+
+  final bool onboardingCompleted;
 
   @override
   State<App> createState() => _AppState();
 }
 
 class _AppState extends State<App> {
-  late final RecognitionController _recognitionController = RecognitionController(
-    recognizeFormula: Dependencies.recognizeFormula,
-  );
+  late final RecognitionController _recognitionController =
+      RecognitionController(recognizeFormula: Dependencies.recognizeFormula);
 
   late final _router = GoRouter(
-    initialLocation: '/onboarding',
+    initialLocation: widget.onboardingCompleted ? '/recognize' : '/onboarding',
     routes: [
-      GoRoute(
-        path: '/onboarding',
-        builder: (_, _) => const OnboardingScreen(),
-      ),
+      GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(
         path: '/recognize',
-        builder: (_, _) => RecognitionScreen(controller: _recognitionController),
+        builder: (_, _) =>
+            RecognitionScreen(controller: _recognitionController),
       ),
     ],
   );
 
   @override
   void dispose() {
+    _router.dispose();
     _recognitionController.dispose();
     super.dispose();
   }

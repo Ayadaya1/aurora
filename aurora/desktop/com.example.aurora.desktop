@@ -1,14 +1,12 @@
-# This file will be recreated at the next build. To avoid this, delete this line.
-
 [Desktop Entry]
 Type=Application
-Name=aurora
+Name=Nord Scan
 Comment=Formula OCR
 Icon=com.example.aurora
 Exec=/usr/bin/com.example.aurora
 X-Nemo-Application-Type=silica-qt5
 
 [X-Application]
-Permissions=Internet;UserDirs;DeviceInfo;Audio;ru.cryptopro.gui@ru.cryptopro.csp;ru.cryptopro.nmcades@ru.cryptopro.csp;RemovableMedia;Camera;Music
+Permissions=Internet;UserDirs;DeviceInfo;RemovableMedia;Camera;Audio;Music
 OrganizationName=com.example
 ApplicationName=aurora

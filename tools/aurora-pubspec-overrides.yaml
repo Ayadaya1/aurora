@@ -1,0 +1,6 @@
+# Copied to the project root by build-aurora.sh for Aurora builds only.
+dependency_overrides:
+  aurora_window_manager:
+    path: third_party/aurora_window_manager
+  image_picker_aurora:
+    path: third_party/image_picker_aurora

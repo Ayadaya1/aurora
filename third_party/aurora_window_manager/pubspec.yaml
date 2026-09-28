@@ -1,0 +1,17 @@
+name: aurora_window_manager
+description: The plugin allows Aurora OS Flutter apps to resize the window.
+version: 1.8.0
+environment:
+  sdk: '>=3.2.2 <4.0.0'
+  flutter: '>=3.35.7'
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+  aurora_platform: ^1.0.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+aurora:
+  aurora_specific_package: true

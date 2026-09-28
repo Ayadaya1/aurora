@@ -50,3 +50,7 @@ __pycache__/
 
 # Aurora release artifacts
 /dist/
+
+# Temporary Aurora-only overrides installed by the build script
+/pubspec_overrides.yaml
+/tools/compat_tests/build/

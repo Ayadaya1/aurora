@@ -1,0 +1,27 @@
+name: image_picker_aurora
+description: Aurora implementation of the image_picker plugin.
+version: 2.4.0
+publish_to: none
+environment:
+  sdk: '>=3.2.2 <4.0.0'
+  flutter: '>=3.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker_platform_interface: 2.11.1
+  flutter_svg: ^2.0.10+1
+  file_selector: ^1.0.3
+  camera: ^0.11.2
+  aurora_window_manager: ^1.5.0
+dev_dependencies:
+  flutter_lints: ^4.0.0
+flutter:
+  assets:
+  - assets/
+  plugin:
+    implements: image_picker
+    platforms:
+      aurora:
+        dartPluginClass: ImagePickerAurora
+aurora:
+  aurora_specific_package: true

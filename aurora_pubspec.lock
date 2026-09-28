@@ -63,33 +63,6 @@ packages:
     source: hosted
     upstream_version_for_aurora: null
     version: "4.6.2"
-  aurora_libaurorawebview:
-    dependency: transitive
-    description:
-      name: aurora_libaurorawebview
-      sha256: f3cbb8385aa506f947e450bf3fa944650482f65b2bfb69be21ed32e0a20b6c2b
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: null
-    version: "2.0.1"
-  aurora_libcef:
-    dependency: transitive
-    description:
-      name: aurora_libcef
-      sha256: f05809f29f3658975026117ab2b11a686949429c47d5a44b94b0cd9ff5cc2b0b
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: null
-    version: "2.0.0"
-  aurora_libgbm:
-    dependency: transitive
-    description:
-      name: aurora_libgbm
-      sha256: "1902db190a907812ab311c558ba9ac806ba8711addbfd2c72458a2c05a1463f9"
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: null
-    version: "24.0.0"
   aurora_libyuv:
     dependency: transitive
     description:
@@ -118,14 +91,13 @@ packages:
     upstream_version_for_aurora: null
     version: "1.0.2"
   aurora_window_manager:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: aurora_window_manager
-      sha256: "06a30d4861e2a8273176309f422c4ab8c2413f6d85530f461d30a53a3bff8788"
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
+      path: "third_party/aurora_window_manager"
+      relative: true
+    source: path
     upstream_version_for_aurora: null
-    version: "1.10.0"
+    version: "1.8.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -300,6 +272,14 @@ packages:
     source: sdk
     upstream_version_for_aurora: null
     version: "0.0.0"
+  flutter_math_fork:
+    dependency: "direct main"
+    description:
+      path: "third_party/flutter_math_fork"
+      relative: true
+    source: path
+    upstream_version_for_aurora: null
+    version: "0.7.4"
   flutter_svg:
     dependency: transitive
     description:
@@ -367,16 +347,15 @@ packages:
     upstream_version_for_aurora: "1.1.2"
     version: "1.2.3+2"
   image_picker_aurora:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: image_picker_aurora
-      sha256: bb070857e7d664f6a82b6a6608eb63915409663f4a82bb7e3c54354f2434a596
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
+      path: "third_party/image_picker_aurora"
+      relative: true
+    source: path
     upstream_version_for_aurora: null
     version: "2.4.0"
   image_picker_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: image_picker_platform_interface
       sha256: "5a7ed8434c3bdfadafbd5dc29d5040d648e29b15ed613b6afd003fafce7b0a1a"
@@ -474,6 +453,15 @@ packages:
     source: hosted
     upstream_version_for_aurora: null
     version: "2.1.0"
+  nested:
+    dependency: transitive
+    description:
+      name: nested
+      sha256: "03bac4c528c64c95c722ec99280375a6f2fc708eec17c7b3f07253b626cd2a20"
+      url: "https://pub.dev"
+    source: hosted
+    upstream_version_for_aurora: null
+    version: "1.0.0"
   path:
     dependency: transitive
     description:
@@ -555,6 +543,15 @@ packages:
     source: hosted
     upstream_version_for_aurora: null
     version: "6.5.2"
+  provider:
+    dependency: transitive
+    description:
+      name: provider
+      sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
+      url: "https://pub.dev"
+    source: hosted
+    upstream_version_for_aurora: null
+    version: "6.1.5+1"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -651,6 +648,15 @@ packages:
     source: hosted
     upstream_version_for_aurora: null
     version: "0.7.10"
+  tuple:
+    dependency: transitive
+    description:
+      name: tuple
+      sha256: a97ce2013f240b2f3807bcbaf218765b6f301c3eff91092bcfa23a039e7dd151
+      url: "https://pub.dev"
+    source: hosted
+    upstream_version_for_aurora: null
+    version: "2.0.2"
   typed_data:
     dependency: transitive
     description:
@@ -714,33 +720,6 @@ packages:
     source: hosted
     upstream_version_for_aurora: null
     version: "1.1.1"
-  webview_flutter:
-    dependency: "direct main"
-    description:
-      name: webview_flutter
-      sha256: d242c6b8f2c9b997a02dae936708630666d91830e0d970c0a8cdaa1c23159c4c
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: "4.13.1"
-    version: "4.13.1+17"
-  webview_flutter_aurora:
-    dependency: transitive
-    description:
-      name: webview_flutter_aurora
-      sha256: "9a0e8403adcbd9e9b50448db7634c597c66d6ab12c5db93ea78def7151b88270"
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: null
-    version: "1.15.0"
-  webview_flutter_platform_interface:
-    dependency: transitive
-    description:
-      name: webview_flutter_platform_interface
-      sha256: d6cb02231a113e140c8ee066b2459aca9d8d1a78146888fe37315a1345c24fa4
-      url: "https://sdk-repo.omprussia.ru/sdk/flutter/pub/"
-    source: hosted
-    upstream_version_for_aurora: null
-    version: "2.14.0"
   xml:
     dependency: transitive
     description:

@@ -7,7 +7,6 @@ project(${FLUTTER_PROJECT_NAME} LANGUAGES CXX)
 
 include(GNUInstallDirs)
 find_package(PkgConfig REQUIRED)
-find_package(Qt5 COMPONENTS Core Gui REQUIRED)
 
 set(BINARY_NAME ${CMAKE_PROJECT_NAME})
 set(FLUTTER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/flutter)
@@ -24,12 +23,6 @@ set(CMAKE_INSTALL_RPATH "\$ORIGIN/../share/${BINARY_NAME}/lib;${CMAKE_INSTALL_PR
 add_executable(${BINARY_NAME} main.cpp)
 
 include(flutter/generated_plugins.cmake)
-target_include_directories(${BINARY_NAME} PRIVATE ${Qt5Core_INCLUDE_DIRS} ${Qt5Gui_INCLUDE_DIRS})
-get_property(CEF_LINK_PROPERTY GLOBAL PROPERTY "CEF_LINK_PROPERTY")
-target_link_options(${BINARY_NAME} PRIVATE ${CEF_LINK_PROPERTY})
-target_link_libraries(${BINARY_NAME} PRIVATE Qt5::Core Qt5::Gui)
-target_compile_definitions(${BINARY_NAME} PRIVATE WEBVIEW_SUBPROCESS_LAUNCHER_INSTALL_PATH="${WEBVIEW_SUBPROCESS_LAUNCHER_INSTALL_PATH}")
-
 set(PACKAGE_INSTALL_DIR    ${CMAKE_INSTALL_DATADIR}/${BINARY_NAME})
 set(DESKTOP_INSTALL_DIR    ${CMAKE_INSTALL_DATADIR}/applications)
 set(ICONS_INSTALL_ROOT_DIR ${CMAKE_INSTALL_DATADIR}/icons/hicolor)

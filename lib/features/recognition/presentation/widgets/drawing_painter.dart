@@ -33,6 +33,15 @@ class DrawingPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke;
 
+      final points = stroke.points.whereType<Offset>();
+      if (points.length == 1) {
+        canvas.drawCircle(
+          points.first,
+          stroke.strokeWidth / 2,
+          paint..style = PaintingStyle.fill,
+        );
+        continue;
+      }
       for (var i = 0; i < stroke.points.length - 1; i++) {
         final p1 = stroke.points[i];
         final p2 = stroke.points[i + 1];

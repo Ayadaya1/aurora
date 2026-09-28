@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 import 'package:aurora/core/theme/app_colors.dart';
 
 class LatexResultView extends StatelessWidget {
-  const LatexResultView({
-    super.key,
-    required this.controller,
-    required this.latex,
-  });
+  const LatexResultView({super.key, required this.latex});
 
-  final WebViewController controller;
   final String? latex;
 
   @override
@@ -34,7 +29,52 @@ class LatexResultView extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            WebViewWidget(controller: controller),
+            Positioned.fill(
+              child: latex == null
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Здесь появится распознанная формула',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF90A4AE)),
+                        ),
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: constraints.maxWidth,
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(28),
+                              child: Center(
+                                child: Math.tex(
+                                  latex!,
+                                  mathStyle: MathStyle.display,
+                                  textStyle: const TextStyle(
+                                    fontSize: 26,
+                                    color: AppColors.ink,
+                                  ),
+                                  onErrorFallback: (_) => Text(
+                                    latex!,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      color: AppColors.ink,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
             if (latex != null)
               Positioned(
                 top: 10,
@@ -51,8 +91,11 @@ class LatexResultView extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(Icons.copy_outlined,
-                      size: 18, color: AppColors.ink.withOpacity(0.55)),
+                  child: Icon(
+                    Icons.copy_outlined,
+                    size: 18,
+                    color: AppColors.ink.withOpacity(0.55),
+                  ),
                 ),
               ),
           ],

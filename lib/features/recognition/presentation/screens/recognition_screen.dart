@@ -1,17 +1,14 @@
-import 'dart:io';
-
 import 'package:aurora/core/theme/app_colors.dart';
 import 'package:aurora/features/recognition/domain/recognition_source.dart';
-import 'package:aurora/features/recognition/presentation/controllers/recognition_controller.dart' hide DrawingCanvas, DrawingCanvasController, DrawingCanvasState;
+import 'package:aurora/features/recognition/presentation/controllers/recognition_controller.dart'
+    hide DrawingCanvas, DrawingCanvasController, DrawingCanvasState;
 import 'package:aurora/features/recognition/presentation/widgets/drawing_canvas.dart';
-import 'package:aurora/features/recognition/presentation/widgets/latex_html_builder.dart';
 import 'package:aurora/features/recognition/presentation/widgets/latex_result_view.dart';
 import 'package:aurora/features/recognition/presentation/widgets/mode_switcher.dart';
 import 'package:aurora/features/recognition/presentation/widgets/photo_input_view.dart';
 import 'package:aurora/features/recognition/presentation/widgets/recognize_button.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 class RecognitionScreen extends StatefulWidget {
   const RecognitionScreen({super.key, required this.controller});
@@ -27,24 +24,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   final _drawingController = DrawingCanvasController();
   final _canvasKey = GlobalKey<DrawingCanvasState>();
 
-  late final WebViewController _webView;
   double _strokeWidth = 4.0;
   bool _touchingCanvas = false;
+  bool _pickingPhoto = false;
 
   RecognitionController get _c => widget.controller;
 
   @override
   void initState() {
     super.initState();
-    _webView = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(LatexHtmlBuilder.build(null));
-
-    // The Aurora WebView plugin does not implement setBackgroundColor.
-    if (Platform.operatingSystem != 'aurora') {
-      _webView.setBackgroundColor(Colors.white);
-    }
-
     _c.addListener(_onControllerChanged);
   }
 
@@ -56,15 +44,27 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
   void _onControllerChanged() {
     setState(() {});
-    if (_c.latex != null) {
-      _webView.loadHtmlString(LatexHtmlBuilder.build(_c.latex));
-    }
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
-    final file = await _picker.pickImage(source: source, imageQuality: 95);
-    if (file == null) return;
-    _c.setPhoto(file.path);
+    if (_pickingPhoto) return;
+    _pickingPhoto = true;
+    try {
+      final file = await _picker.pickImage(source: source, imageQuality: 95);
+      if (!mounted || file == null) return;
+      _c.setPhoto(file.path);
+    } catch (error, stack) {
+      debugPrint('Image picker failed: $error\n$stack');
+      if (mounted) {
+        _snack(
+          source == ImageSource.camera
+              ? 'Камера недоступна. Проверьте разрешения или выберите фото из галереи.'
+              : 'Не удалось открыть галерею. Проверьте разрешение на доступ к файлам.',
+        );
+      }
+    } finally {
+      _pickingPhoto = false;
+    }
   }
 
   Future<void> _recognize() async {
@@ -76,17 +76,20 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     }
 
     final canvasState = _canvasKey.currentState;
-    if (mode == RecognitionMode.drawing && (canvasState == null || canvasState.isEmpty)) {
+    if (mode == RecognitionMode.drawing &&
+        (canvasState == null || canvasState.isEmpty)) {
       _snack('Нарисуйте формулу на холсте');
       return;
     }
 
-    final RecognitionSource source = switch (mode) {
-      RecognitionMode.photo => PhotoSource(_c.photoPath!),
-      RecognitionMode.drawing => DrawingSource(await _drawingController.capture()),
-    };
-
     try {
+      final RecognitionSource source = switch (mode) {
+        RecognitionMode.photo => PhotoSource(_c.photoPath!),
+        RecognitionMode.drawing => DrawingSource(
+          await _drawingController.capture(),
+        ),
+      };
+
       await _c.recognize(source);
     } catch (e) {
       if (mounted) _snack(e.toString());
@@ -94,8 +97,9 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -115,8 +119,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                 mode: _c.mode,
                 onChanged: (m) {
                   _c.setMode(m);
-                  //_canvasKey.currentState?.clear();
-                  //_webView.loadHtmlString(LatexHtmlBuilder.build(null));
                 },
               ),
               const SizedBox(height: 12),
@@ -137,7 +139,7 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
               const SizedBox(height: 16),
               _sectionLabel(Icons.functions, 'Результат'),
               const SizedBox(height: 8),
-              LatexResultView(controller: _webView, latex: _c.latex),
+              LatexResultView(latex: _c.latex),
             ],
           ),
         ),

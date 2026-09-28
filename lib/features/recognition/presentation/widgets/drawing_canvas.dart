@@ -12,7 +12,7 @@ class DrawingCanvasController {
 
   Future<Uint8List> capture() async {
     final boundary =
-    boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
 
     final image = await boundary.toImage(pixelRatio: 2.0);
 
@@ -28,29 +28,14 @@ class DrawingCanvasController {
     final paint = Paint();
 
     canvas.drawRect(
-      Rect.fromLTWH(
-        0,
-        0,
-        width + padding * 2,
-        height + padding * 2,
-      ),
+      Rect.fromLTWH(0, 0, width + padding * 2, height + padding * 2),
       Paint()..color = Colors.white,
     );
 
     canvas.drawImageRect(
       image,
-      Rect.fromLTWH(
-        crop * 2,
-        crop * 2,
-        width,
-        height,
-      ),
-      Rect.fromLTWH(
-        padding,
-        padding,
-        width,
-        height,
-      ),
+      Rect.fromLTWH(crop * 2, crop * 2, width, height),
+      Rect.fromLTWH(padding, padding, width, height),
       paint,
     );
 
@@ -59,9 +44,7 @@ class DrawingCanvasController {
       (height + padding * 2).round(),
     );
 
-    final bytes = await result.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
+    final bytes = await result.toByteData(format: ui.ImageByteFormat.png);
 
     if (bytes == null) {
       throw StateError('Не удалось создать PNG');
@@ -93,6 +76,7 @@ class DrawingCanvas extends StatefulWidget {
 
 class DrawingCanvasState extends State<DrawingCanvas> {
   late List<Stroke> _strokes;
+  int? _activePointer;
 
   bool get isEmpty => _strokes.isEmpty;
 
@@ -120,27 +104,33 @@ class DrawingCanvasState extends State<DrawingCanvas> {
     _notifyStrokesChanged();
   }
 
-  void _onPanStart(DragStartDetails d) {
+  void _onPointerDown(PointerDownEvent event) {
+    if (_activePointer != null) return;
+    _activePointer = event.pointer;
+    widget.onTouchChanged(true);
     setState(() {
       _strokes.add(
-        Stroke(points: [d.localPosition], strokeWidth: widget.strokeWidth),
+        Stroke(points: [event.localPosition], strokeWidth: widget.strokeWidth),
       );
     });
 
     _notifyStrokesChanged();
   }
 
-  void _onPanUpdate(DragUpdateDetails d) {
-    if (_strokes.isEmpty) return;
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_activePointer != event.pointer || _strokes.isEmpty) return;
 
     setState(() {
-      _strokes.last.points.add(d.localPosition);
+      _strokes.last.points.add(event.localPosition);
     });
 
     _notifyStrokesChanged();
   }
 
-  void _onPanEnd(DragEndDetails _) {
+  void _onPointerEnd(PointerEvent event) {
+    if (_activePointer != event.pointer) return;
+    _activePointer = null;
+    widget.onTouchChanged(false);
     if (_strokes.isEmpty) return;
 
     setState(() {
@@ -168,18 +158,17 @@ class DrawingCanvasState extends State<DrawingCanvas> {
           ],
         ),
         clipBehavior: Clip.antiAlias,
+        // Track the pointer directly: changing the parent's scroll physics on
+        // pointer-down can cancel a GestureDetector's pending pan recognition.
         child: Listener(
-          onPointerDown: (_) => widget.onTouchChanged(true),
-          onPointerUp: (_) => widget.onTouchChanged(false),
-          onPointerCancel: (_) => widget.onTouchChanged(false),
-          child: GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: DrawingPainter(strokes: _strokes),
-            ),
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerEnd,
+          onPointerCancel: _onPointerEnd,
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: DrawingPainter(strokes: _strokes),
           ),
         ),
       ),

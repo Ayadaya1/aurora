@@ -1,10 +1,16 @@
 import 'package:aurora/app.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/di/dependencies.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Dependencies.init();
-  runApp(const App());
+  final preferences = await SharedPreferences.getInstance();
+  runApp(
+    App(
+      onboardingCompleted: preferences.getBool('onboarding_completed') ?? false,
+    ),
+  );
 }
